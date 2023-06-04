@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main # change this if your default branch is named differently
+      - A7med3bdulBaset-patch-2
   pull_request:
     types: [opened, synchronize, reopened]
 
