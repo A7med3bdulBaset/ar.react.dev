@@ -22,7 +22,7 @@ jobs:
           node-version: 20.x
 
       - name: Install deps and build (with cache)
-        uses: bahmutov/npm-install@v1.7.10
+        uses: bahmutov/npm-install@v1.6.0
 
       - name: Lint codebase
         run: yarn ci-check
