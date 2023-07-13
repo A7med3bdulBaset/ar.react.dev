@@ -1,11 +1,11 @@
 // @ts-check
 
-import {readFile, readdir, mkdir, writeFile} from 'fs/promises';
+import { readFile, readdir, mkdir, writeFile } from 'fs/promises';
 import path from 'path';
 
 /**
- * Array of directories to calc inside ./src/cotent.
- * > Note: Leave it empty to calc all directories
+ * Array of directories to calculate inside ./src/content.
+ * > Note: Leave it empty to calculate all directories
  * @type {string[]}
  */
 const DIRECTORIES = [
@@ -24,51 +24,52 @@ main().catch((error) => {
   console.error('An error occurred:', error);
 });
 
+/**
+ * Main function that calculates statistics for directories and generates output files.
+ */
 async function main() {
-  
   if (!DIRECTORIES.length) {
-    await calcDirectory('', BASE_PATH, 'ALL_FILES');
+    await calculateDirectory('', BASE_PATH, 'ALL_FILES');
   } else {
-    for await (const DIR of DIRECTORIES) {
-      await calcDirectory(DIR, path.join(BASE_PATH, DIR), DIR);
+    for await (const dir of DIRECTORIES) {
+      await calculateDirectory(dir, path.join(BASE_PATH, dir), dir);
     }
   }
 
   const outputFile = formatFile('ALL_FILES', ALL_FILES);
-  await mkdir(path.join(process.cwd(), 'stats'), {recursive: true});
+  await mkdir(path.join(process.cwd(), 'stats'), { recursive: true });
   await writeFile(
     path.join(process.cwd(), 'stats', `ALL_FILES.md`),
     outputFile,
     'utf8'
   );
-
-  console.log(`Done: ALL_FILES`);
+  console.log('Done: ALL_FILES');
 }
 
 /**
- * @param {string} dir
- * @param {string} dirPath
- * @param {string} outFileName
+ * Calculates statistics for a directory recursively.
+ * @param {string} dir - Directory name.
+ * @param {string} dirPath - Directory path.
+ * @param {string} outFileName - Output file name.
  */
-async function calcDirectory(dir, dirPath, outFileName) {
+async function calculateDirectory(dir, dirPath, outFileName) {
   /** @type {Stats[]} */
   const FILES = [];
 
-  const filesOrDirs = await readdir(dirPath, {withFileTypes: true});
+  const filesOrDirs = await readdir(dirPath, { withFileTypes: true });
 
   for (const fileOrDir of filesOrDirs) {
     if (fileOrDir.isDirectory()) {
-      const directory = fileOrDir.name;
-      await calcDirectory(
-        directory,
-        path.join(dirPath, directory),
-        dir ? `${outFileName}_${directory}` : directory
+      const subDir = fileOrDir.name;
+      await calculateDirectory(
+        subDir,
+        path.join(dirPath, subDir),
+        dir ? `${outFileName}_${subDir}` : subDir
       );
     } else {
       const file = fileOrDir.name;
-
       const fileContent = await readFile(path.join(dirPath, file), 'utf8');
-      const isArabic = fileContent.search(ARABIC_REGEX) !== -1;
+      const isArabic = ARABIC_REGEX.test(fileContent);
 
       /** @type {Stats} */
       const doc = {
@@ -79,13 +80,15 @@ async function calcDirectory(dir, dirPath, outFileName) {
         characters: fileContent.length,
       };
 
-      [FILES, ALL_FILES].forEach((arr) => arr.push(doc));
+      FILES.push(doc);
+      ALL_FILES.push(doc);
     }
   }
 
   if (!FILES.length || !dir) return;
+
   const outputFile = formatFile(dir, FILES);
-  await mkdir(path.join(process.cwd(), 'stats'), {recursive: true});
+  await mkdir(path.join(process.cwd(), 'stats'), { recursive: true });
   await writeFile(
     path.join(process.cwd(), 'stats', `${outFileName.replace('/', '_')}.md`),
     outputFile,
@@ -96,33 +99,37 @@ async function calcDirectory(dir, dirPath, outFileName) {
 }
 
 /**
- * @param {string} dir
- * @param {Stats[]} files
- * @returns {string}
- **/
+ * Formats the output file content based on the directory and files statistics.
+ * @param {string} dir - Directory name.
+ * @param {Stats[]} files - Array of file statistics.
+ * @returns {string} - Formatted output file content.
+ */
 function formatFile(dir, files) {
-  const untranslatedFiles = files.filter((f) => !f.isTranslated);
-  const translatedFiles = files.filter((f) => f.isTranslated);
+  const untranslatedFiles = files.filter((file) => !file.isTranslated);
+  const translatedFiles = files.filter((file) => file.isTranslated);
 
   const untranslatedTable = createTable(untranslatedFiles);
   const translatedTable = createTable(translatedFiles);
 
-  return `# ${dir}
-| Total Files | ${files.length} |
-| ----------- | -------------- |
-| Untranslated Files | ${untranslatedFiles.length} |
-| Translated Files | ${translatedFiles.length} |
-
-## Untranslated:
-${untranslatedTable}
-
-## Translated:
-${translatedTable}
-`
+  return [
+    `# ${dir}`,
+    `| Total Files | ${files.length} |`,
+    '| ----------- | -------------- |',
+    `| Untranslated Files | ${untranslatedFiles.length} |`,
+    `| Translated Files | ${translatedFiles.length} |`,
+    '',
+    '## Untranslated:',
+    `${untranslatedTable}`,
+    '',
+    '## Translated:',
+    `${translatedTable}`,
+  ].join('\n');
 }
 
 /**
- * @param {Stats[]} files
+ * Creates a table from file statistics.
+ * @param {Stats[]} files - Array of file statistics.
+ * @returns {string} - Formatted table.
  */
 function createTable(files) {
   if (files.length === 0) {
@@ -131,7 +138,12 @@ function createTable(files) {
 
   const sortedFiles = files.sort((a, b) => a.lines - b.lines);
   const tableRows = sortedFiles
-    .map((f, i) => `| ${i + 1} | ${f.name} | ${f.lines} | ${f.words} | ${f.characters} | ${f.isTranslated ? '[x]' : '[ ]'} |`)
+    .map(
+      (file, index) =>
+        `| ${index + 1} | ${file.name} | ${file.lines} | ${file.words} | ${file.characters} | ${
+          file.isTranslated ? '[x]' : '[ ]'
+        } |`
+    )
     .join('\n');
 
   return `| Idx | File | Lines | Words | Characters | isTranslated |

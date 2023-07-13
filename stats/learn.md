@@ -54,4 +54,3 @@
 | 12 | javascript-in-jsx-with-curly-braces.md | 587 | 2331 | 13443 | [x] |
 | 13 | thinking-in-react.md | 650 | 3866 | 22234 | [x] |
 | 14 | tutorial-tic-tac-toe.md | 2959 | 14317 | 82614 | [x] |
-
